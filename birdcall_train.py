@@ -1,7 +1,7 @@
 
 import  torch, os
 import  numpy as np
-from    omniglotNShot import OmniglotNShot
+from    birdCallNShot import BirdCallNShot
 import  argparse
 
 from    meta import Meta
@@ -15,20 +15,17 @@ def main(args):
     print(args)
 
     config = [
-        ('conv2d', [64, 1, 3, 3, 2, 0]),
+        ('conv2d', [32, 1, 7, 7, 1, 3]),
         ('relu', [True]),
-        ('bn', [64]),
-        ('conv2d', [64, 64, 3, 3, 2, 0]),
+        ('bn', [32]),
+        ('conv2d', [16, 32, 5, 5, 1, 2]),
         ('relu', [True]),
-        ('bn', [64]),
-        ('conv2d', [64, 64, 3, 3, 2, 0]),
+        ('bn', [16]),
+        ('conv2d', [8, 16, 3, 3, 1, 1]),
         ('relu', [True]),
-        ('bn', [64]),
-        ('conv2d', [64, 64, 2, 2, 1, 0]),
-        ('relu', [True]),
-        ('bn', [64]),
+        ('bn', [8]),
         ('flatten', []),
-        ('linear', [args.n_way, 64])
+        ('linear', [args.n_way, 8 * 48 * 128])
     ]
 
     device = torch.device('cpu')
@@ -39,12 +36,11 @@ def main(args):
     print(maml)
     print('Total trainable tensors:', num)
 
-    db_train = OmniglotNShot('omniglot',
+    db_train = BirdCallNShot('birdCall',
                        batchsz=args.task_num,
                        n_way=args.n_way,
                        k_shot=args.k_spt,
-                       k_query=args.k_qry,
-                       imgsz=args.imgsz)
+                       k_query=args.k_qry)
     
     train_accs_list = []
     val_accs_list = []
@@ -61,12 +57,11 @@ def main(args):
         accs = maml(x_spt, y_spt, x_qry, y_qry)
         val_accs_list.append(accs[-1])
 
-        if step % 50 == 0:
+        if step % 10 == 0:
+            torch.save(maml, "birdcall.pth")
             print('step:', step, '\ttraining acc:', accs)
-            print(f"val_accs: {val_accs_list}")
-            torch.save(maml, "omniglot_maml.pth")
 
-        if step % 500 == 0:
+        if step % 200 == 0 and step > 0:
             accs = []
             for _ in range( 1000//args.task_num):
                 # test
@@ -76,7 +71,7 @@ def main(args):
 
                 # split to single task each time
                 for x_spt_one, y_spt_one, x_qry_one, y_qry_one in zip(x_spt, y_spt, x_qry, y_qry):
-                    test_acc = maml.finetunning(x_spt_one, y_spt_one, x_qry_one, y_qry_one)
+                    test_acc = maml.finetuning(x_spt_one, y_spt_one, x_qry_one, y_qry_one)
                     accs.append( test_acc )
 
             # [b, update_step+1]
@@ -91,7 +86,7 @@ if __name__ == '__main__':
     argparser = argparse.ArgumentParser()
     argparser.add_argument('--epoch', type=int, help='epoch number', default=40000)
     argparser.add_argument('--n_way', type=int, help='n way', default=5)
-    argparser.add_argument('--k_spt', type=int, help='k shot for support set', default=1)
+    argparser.add_argument('--k_spt', type=int, help='k shot for support set', default=10)
     argparser.add_argument('--k_qry', type=int, help='k shot for query set', default=15)
     argparser.add_argument('--imgsz', type=int, help='imgsz', default=28)
     argparser.add_argument('--imgc', type=int, help='imgc', default=1)
@@ -99,7 +94,7 @@ if __name__ == '__main__':
     argparser.add_argument('--meta_lr', type=float, help='meta-level outer learning rate', default=1e-3)
     argparser.add_argument('--update_lr', type=float, help='task-level inner update learning rate', default=0.4)
     argparser.add_argument('--update_step', type=int, help='task-level inner update steps', default=5)
-    argparser.add_argument('--update_step_test', type=int, help='update steps for finetunning', default=10)
+    argparser.add_argument('--update_step_test', type=int, help='update steps for finetuning', default=10)
 
     args = argparser.parse_args()
     
