@@ -3,8 +3,9 @@ import  torch, os
 import  numpy as np
 from    birdCallNShot import BirdCallNShot
 import  argparse
-
 from    meta import Meta
+
+import datetime
 
 def main(args):
 
@@ -25,7 +26,7 @@ def main(args):
         ('relu', [True]),
         ('bn', [8]),
         ('flatten', []),
-        ('linear', [args.n_way, 8 * 48 * 128])
+        ('linear', [args.n_way, 8 * 28 * 28])
     ]
 
     device = torch.device('cpu')
@@ -40,7 +41,8 @@ def main(args):
                        batchsz=args.task_num,
                        n_way=args.n_way,
                        k_shot=args.k_spt,
-                       k_query=args.k_qry)
+                       k_query=args.k_qry,
+                             imgsz = args.imgsz)
     
     train_accs_list = []
     val_accs_list = []
@@ -48,18 +50,19 @@ def main(args):
 
     # for step in range(args.epoch):
     for step in range(1001):
-
+        
         x_spt, y_spt, x_qry, y_qry = db_train.next()
         x_spt, y_spt, x_qry, y_qry = torch.from_numpy(x_spt).to(device), torch.from_numpy(y_spt).to(device), \
                                      torch.from_numpy(x_qry).to(device), torch.from_numpy(y_qry).to(device)
-
+        
         # set traning=True to update running_mean, running_variance, bn_weights, bn_bias
         accs = maml(x_spt, y_spt, x_qry, y_qry)
         val_accs_list.append(accs[-1])
-
+        
         if step % 10 == 0:
             torch.save(maml, "birdcall.pth")
             print('step:', step, '\ttraining acc:', accs)
+            print(f'current time: {datetime.datetime.now()}')
 
         if step % 200 == 0 and step > 0:
             accs = []

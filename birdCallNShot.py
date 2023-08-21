@@ -5,13 +5,14 @@ import  os.path
 import  numpy as np
 import random
 import pdb
+import cv2
 
 class BirdCallNShot:
 
     NUM_TAKEN_FROM_SPECIES = 100
     TRAIN_RATIO = 0.75
 
-    def __init__(self, root, batchsz, n_way, k_shot, k_query):
+    def __init__(self, root, batchsz, n_way, k_shot, k_query, imgsz):
         """
         Different from mnistNShot, the
         :param root:
@@ -29,6 +30,7 @@ class BirdCallNShot:
         self.n_way = n_way  # n way
         self.k_shot = k_shot  # k shot
         self.k_query = k_query  # k query
+        self.resize = imgsz
 
         self.x_preselected = np.load(self.dataset.data_output_path)
         self.y_preselected = np.load(self.dataset.labels_output_path)
@@ -42,9 +44,8 @@ class BirdCallNShot:
         # assert self.num_species_train >= self.n_way and self.num_species_test >= self.n_way, "Not enough species for n-way classification!"
 
         # The 1 is a hack, we will later permute these such that that dimension is the last dimension
-        self.x = np.zeros([self.n_cls, 1, self.NUM_TAKEN_FROM_SPECIES, 48, 128])
-        self.x_train = np.zeros([self.num_species_train, 1, self.NUM_TAKEN_FROM_SPECIES, 48, 128])
-        self.x_test = np.zeros([self.num_species_test, 1, self.NUM_TAKEN_FROM_SPECIES, 48, 128])
+        self.x_train = np.zeros([self.num_species_train, 1, self.NUM_TAKEN_FROM_SPECIES, self.dataset.SPEC_SHAPE[0], self.dataset.SPEC_SHAPE[1]])
+        self.x_test = np.zeros([self.num_species_test, 1, self.NUM_TAKEN_FROM_SPECIES, self.dataset.SPEC_SHAPE[0], self.dataset.SPEC_SHAPE[1]])
 
         # Pick self.NUM_TAKEN_FROM_SPECIES recordings from each bird species to create a balanced dataset
 
@@ -55,18 +56,17 @@ class BirdCallNShot:
             bird_name = self.dataset.idx_to_name[bird_idx]
             selections = random.sample(range(self.dataset.bird_count[bird_name]), self.NUM_TAKEN_FROM_SPECIES)
             for recording_idx, offset in enumerate(selections):
-                self.x[num_species_filled, 0, recording_idx] = np.copy(self.x_preselected[iteration_idx + offset])
                 assert bird_idx == self.y_preselected[iteration_idx + offset]
                 # Put first self.num_species_train species into train, and the rest into test
                 if num_species_filled < self.num_species_train:
                     self.x_train[num_species_filled, 0, recording_idx] = np.copy(self.x_preselected[iteration_idx + offset])
                 else:
-                    self.x_test[num_species_filled - self.num_species_train, 0, recording_idx] = np.copy(self.x_preselected[iteration_idx + offset])
+                    self.x_test[num_species_filled - self.num_species_train, 0, recording_idx] = \
+                    np.copy(self.x_preselected[iteration_idx + offset])
                     
             iteration_idx += self.dataset.bird_count[bird_name]
             num_species_filled += 1
-    
-        self.x = np.transpose(self.x, [0,2,3,4,1])
+            
         self.x_train = np.transpose(self.x_train, [0,2,3,4,1])
         self.x_test = np.transpose(self.x_test, [0,2,3,4,1])
 
@@ -111,10 +111,10 @@ class BirdCallNShot:
 
                 # shuffle inside a batch
                 perm = np.random.permutation(self.n_way * self.k_shot)
-                x_spt = np.array(x_spt).reshape(self.n_way * self.k_shot, 1, 48, 128)[perm]
+                x_spt = np.array(x_spt).reshape(self.n_way * self.k_shot, 1, self.dataset.SPEC_SHAPE[0], self.dataset.SPEC_SHAPE[1])[perm]
                 y_spt = np.array(y_spt).reshape(self.n_way * self.k_shot)[perm]
                 perm = np.random.permutation(self.n_way * self.k_query)
-                x_qry = np.array(x_qry).reshape(self.n_way * self.k_query, 1, 48, 128)[perm]
+                x_qry = np.array(x_qry).reshape(self.n_way * self.k_query, 1, self.dataset.SPEC_SHAPE[0], self.dataset.SPEC_SHAPE[1])[perm]
                 y_qry = np.array(y_qry).reshape(self.n_way * self.k_query)[perm]
 
                 # append [sptsz, 1, 84, 84] => [b, setsz, 1, 84, 84]
@@ -125,10 +125,10 @@ class BirdCallNShot:
 
 
             # [b, setsz, 1, 84, 84]
-            x_spts = np.array(x_spts).astype(np.float32).reshape(self.batchsz, setsz, 1, 48, 128)
+            x_spts = np.array(x_spts).astype(np.float32).reshape(self.batchsz, setsz, 1, self.dataset.SPEC_SHAPE[0], self.dataset.SPEC_SHAPE[1])
             y_spts = np.array(y_spts).astype(np.int32).reshape(self.batchsz, setsz)
             # [b, qrysz, 1, 84, 84]
-            x_qrys = np.array(x_qrys).astype(np.float32).reshape(self.batchsz, querysz, 1, 48, 128)
+            x_qrys = np.array(x_qrys).astype(np.float32).reshape(self.batchsz, querysz, 1, self.dataset.SPEC_SHAPE[0], self.dataset.SPEC_SHAPE[1])
             y_qrys = np.array(y_qrys).astype(np.int32).reshape(self.batchsz, querysz)
 
             data_cache.append([x_spts, y_spts, x_qrys, y_qrys])

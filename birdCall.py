@@ -18,7 +18,7 @@ class BirdCall(data.Dataset):
     RANDOM_SEED = 420
     SAMPLE_RATE = 32000
     SIGNAL_LENGTH = 30 # seconds
-    SPEC_SHAPE = (48, 128) # height x width
+    SPEC_SHAPE = (28, 28) # height x width
     FMIN = 500
     FMAX = 12500
     MIN_RECORDINGS = 100 # threshold
@@ -34,7 +34,7 @@ class BirdCall(data.Dataset):
 
     def __init__(self):
         self.input_path = 'train_short_audio/'
-        self.data_path = 'spectrogram_folder/'
+        self.data_path = 'spectrogram_small_folder/'
         self.data_output_path = 'spectrogram_vals.npy'
         self.labels_output_path = 'spectrogram_labels.npy'
         self.csv_path = 'train_metadata.csv'
