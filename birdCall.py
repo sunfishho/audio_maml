@@ -18,7 +18,6 @@ class BirdCall(data.Dataset):
     RANDOM_SEED = 420
     SAMPLE_RATE = 32000
     SIGNAL_LENGTH = 30 # seconds
-    SPEC_SHAPE = (28, 28) # height x width
     FMIN = 500
     FMAX = 12500
     MIN_RECORDINGS = 100 # threshold
@@ -32,12 +31,22 @@ class BirdCall(data.Dataset):
     - download: need to download the dataset
     '''
 
-    def __init__(self):
+    def __init__(self, SPEC_SHAPE):
         self.input_path = 'train_short_audio/'
-        self.data_path = 'spectrogram_small_folder/'
-        self.data_output_path = 'spectrogram_vals.npy'
-        self.labels_output_path = 'spectrogram_labels.npy'
+        if SPEC_SHAPE == (28,28):
+            self.data_path = 'spectrogram_small_folder'
+            self.data_output_path = 'spectrogram_small_vals.npy'
+            self.labels_output_path = 'spectrogram_small_labels.npy'
+        elif SPEC_SHAPE == (48,128):
+            self.data_path = 'spectrogram_folder'
+            self.data_output_path = 'spectrogram_vals.npy'
+            self.labels_output_path = 'spectrogram_labels.npy'
+        else:
+            print("Shape is not currently supported")
+            raise NotImplementedError
+        
         self.csv_path = 'train_metadata.csv'
+        self.SPEC_SHAPE = SPEC_SHAPE
 
         self.most_represented_birds = []
         self.all_items = []
@@ -90,7 +99,7 @@ class BirdCall(data.Dataset):
         '''
         Return string that is the species name corresponding to a path
         '''
-        return path.split('/')[1]
+        return path.split('/')[-2]
 
     def process_recordings(self):
         '''

@@ -12,7 +12,7 @@ class BirdCallNShot:
     NUM_TAKEN_FROM_SPECIES = 100
     TRAIN_RATIO = 0.75
 
-    def __init__(self, root, batchsz, n_way, k_shot, k_query, imgsz):
+    def __init__(self, root, batchsz, n_way, k_shot, k_query, SPEC_SHAPE):
         """
         Different from mnistNShot, the
         :param root:
@@ -22,7 +22,8 @@ class BirdCallNShot:
         :param k_qry:
         """
         
-        self.dataset = BirdCall()
+        self.dataset = BirdCall(SPEC_SHAPE)
+        self.SPEC_SHAPE = SPEC_SHAPE
 
         self.batchsz = batchsz
         self.n_cls = len(self.dataset.most_represented_birds)  # varies based on self.dataset.MIN_RECORDINGS
@@ -30,11 +31,11 @@ class BirdCallNShot:
         self.n_way = n_way  # n way
         self.k_shot = k_shot  # k shot
         self.k_query = k_query  # k query
-        self.resize = imgsz
-
         self.x_preselected = np.load(self.dataset.data_output_path)
         self.y_preselected = np.load(self.dataset.labels_output_path)
-
+        
+        self.x_preselected /= 256.0
+        
         iteration_idx = 0
 
         self.num_species_train = round(self.n_cls * self.TRAIN_RATIO)
@@ -44,8 +45,8 @@ class BirdCallNShot:
         # assert self.num_species_train >= self.n_way and self.num_species_test >= self.n_way, "Not enough species for n-way classification!"
 
         # The 1 is a hack, we will later permute these such that that dimension is the last dimension
-        self.x_train = np.zeros([self.num_species_train, 1, self.NUM_TAKEN_FROM_SPECIES, self.dataset.SPEC_SHAPE[0], self.dataset.SPEC_SHAPE[1]])
-        self.x_test = np.zeros([self.num_species_test, 1, self.NUM_TAKEN_FROM_SPECIES, self.dataset.SPEC_SHAPE[0], self.dataset.SPEC_SHAPE[1]])
+        self.x_train = np.zeros([self.num_species_train, 1, self.NUM_TAKEN_FROM_SPECIES, self.SPEC_SHAPE[0], self.SPEC_SHAPE[1]])
+        self.x_test = np.zeros([self.num_species_test, 1, self.NUM_TAKEN_FROM_SPECIES, self.SPEC_SHAPE[0], self.SPEC_SHAPE[1]])
 
         # Pick self.NUM_TAKEN_FROM_SPECIES recordings from each bird species to create a balanced dataset
 
@@ -111,10 +112,10 @@ class BirdCallNShot:
 
                 # shuffle inside a batch
                 perm = np.random.permutation(self.n_way * self.k_shot)
-                x_spt = np.array(x_spt).reshape(self.n_way * self.k_shot, 1, self.dataset.SPEC_SHAPE[0], self.dataset.SPEC_SHAPE[1])[perm]
+                x_spt = np.array(x_spt).reshape(self.n_way * self.k_shot, 1, self.SPEC_SHAPE[0], self.SPEC_SHAPE[1])[perm]
                 y_spt = np.array(y_spt).reshape(self.n_way * self.k_shot)[perm]
                 perm = np.random.permutation(self.n_way * self.k_query)
-                x_qry = np.array(x_qry).reshape(self.n_way * self.k_query, 1, self.dataset.SPEC_SHAPE[0], self.dataset.SPEC_SHAPE[1])[perm]
+                x_qry = np.array(x_qry).reshape(self.n_way * self.k_query, 1, self.SPEC_SHAPE[0], self.SPEC_SHAPE[1])[perm]
                 y_qry = np.array(y_qry).reshape(self.n_way * self.k_query)[perm]
 
                 # append [sptsz, 1, 84, 84] => [b, setsz, 1, 84, 84]

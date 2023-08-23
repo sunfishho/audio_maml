@@ -14,6 +14,7 @@ def main(args):
     np.random.seed(222)
 
     print(args)
+    SPEC_SHAPE = (28, 28)
 
     config = [
         ('conv2d', [32, 1, 7, 7, 1, 3]),
@@ -26,7 +27,7 @@ def main(args):
         ('relu', [True]),
         ('bn', [8]),
         ('flatten', []),
-        ('linear', [args.n_way, 8 * 28 * 28])
+        ('linear', [args.n_way, 8 * SPEC_SHAPE[0] * SPEC_SHAPE[1]])
     ]
 
     device = torch.device('cpu')
@@ -42,7 +43,7 @@ def main(args):
                        n_way=args.n_way,
                        k_shot=args.k_spt,
                        k_query=args.k_qry,
-                             imgsz = args.imgsz)
+                       SPEC_SHAPE = SPEC_SHAPE)
     
     train_accs_list = []
     val_accs_list = []
@@ -60,7 +61,7 @@ def main(args):
         val_accs_list.append(accs[-1])
         
         if step % 10 == 0:
-            torch.save(maml, "birdcall.pth")
+            torch.save(maml, "birdcall_spt=10.pth")
             print('step:', step, '\ttraining acc:', accs)
             print(f'current time: {datetime.datetime.now()}')
 
@@ -95,7 +96,7 @@ if __name__ == '__main__':
     argparser.add_argument('--imgc', type=int, help='imgc', default=1)
     argparser.add_argument('--task_num', type=int, help='meta batch size, namely task num', default=32)
     argparser.add_argument('--meta_lr', type=float, help='meta-level outer learning rate', default=1e-3)
-    argparser.add_argument('--update_lr', type=float, help='task-level inner update learning rate', default=0.4)
+    argparser.add_argument('--update_lr', type=float, help='task-level inner update learning rate', default=0.01)
     argparser.add_argument('--update_step', type=int, help='task-level inner update steps', default=5)
     argparser.add_argument('--update_step_test', type=int, help='update steps for finetuning', default=10)
 
